@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TETRO / BALATRO - Tetris Roguelike Arcade</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- Fundo Líquido Balatro Animado via CSS -->
+  <div class="balatro-bg">
+    <div class="swirl-layer swirl-1"></div>
+    <div class="swirl-layer swirl-2"></div>
+    <div class="swirl-layer swirl-3"></div>
+    <div class="bg-vignette"></div>
+  </div>
+
+  <!-- Efeitos CRT e Scanlines -->
+  <div class="crt-overlay">
+    <div class="scanlines"></div>
+    <div class="crt-flicker"></div>
+    <div class="crt-curv"></div>
+  </div>
+
+  <!-- Container Principal do Jogo -->
+  <main class="game-wrapper" id="gameWrapper">
+    <!-- Top Bar: Logo & Audio Status -->
+    <header class="game-header">
+      <div class="title-badge card-panel">
+        <h1 class="logo-title">
+          <span class="logo-t">T</span><span class="logo-e">E</span><span class="logo-t2">T</span><span
+            class="logo-r">R</span><span class="logo-o">O</span>
+          <span class="logo-sub">BALATRO ED.</span>
+        </h1>
+      </div>
+      <div class="header-tools">
+        <button id="btnSound" class="card-btn" title="Alternar Som (M)" aria-label="Som">
+          <span id="soundIcon">🔊</span> SOM [M]
+        </button>
+        <button id="btnPause" class="card-btn" title="Pausar Jogo (P / Esc)" aria-label="Pausar">
+          <span id="pauseIcon">⏸</span> PAUSA [P]
+        </button>
+        <button id="btnRestart" class="card-btn card-btn-danger" title="Reiniciar Jogo (R)" aria-label="Reiniciar">
+          ↻ REINICIAR [R]
+        </button>
+      </div>
+    </header>
+
+    <!-- Área de Jogo em 3 Colunas: Esquerda (Hold/Stats), Centro (Board Canvas), Direita (Next/Mult/Score) -->
+    <div class="game-layout">
+
+      <!-- Coluna Esquerda: Hold, Nível, Linhas, Intensidade -->
+      <aside class="side-column side-left">
+        <!-- Card: HOLD -->
+        <section class="card-panel card-hold">
+          <div class="card-header-badge">HOLD [C]</div>
+          <div class="canvas-box">
+            <canvas id="holdCanvas" width="120" height="100"></canvas>
+          </div>
+          <div class="card-subtext" id="holdSubtext">Trocar Peça</div>
+        </section>
+
+        <!-- Card: STATS (Nível, Linhas, Recorde) -->
+        <section class="card-panel card-stats">
+          <div class="card-header-badge badge-blue">DADOS DO RUN</div>
+
+          <div class="stat-row">
+            <span class="stat-label">NÍVEL</span>
+            <span class="stat-val stat-badge" id="levelVal">1</span>
+          </div>
+
+          <div class="stat-row">
+            <span class="stat-label">LINHAS</span>
+            <span class="stat-val stat-badge" id="linesVal">0</span>
+          </div>
+
+          <div class="stat-row">
+            <span class="stat-label">RECORDE</span>
+            <span class="stat-val" id="highScoreVal">0</span>
+          </div>
+
+
+        </section>
+
+        <!-- Card: ITENS ROGUELIKE PASSIVOS -->
+        <section class="card-panel card-items" id="passivesPanel">
+          <div class="card-header-badge badge-gold">ITENS PASSIVOS (<span id="itemCountVal">0</span>)</div>
+          <div class="items-list-tray" id="itemsListTray">
+            <div class="empty-items-text">Nenhum item passivo.<br>A cada 15 linhas escolha 1!</div>
+          </div>
+          <div class="next-item-progress">
+            <span class="next-item-label">PRÓXIMO ITEM:</span>
+            <span class="next-item-count" id="nextItemLinesVal">15 linhas</span>
+          </div>
+          <div id="trevoPreview" class="trevo-preview hidden"></div>
+        </section>
+
+        <!-- Card: Controles Guia Rápido -->
+        <section class="card-panel card-controls">
+          <div class="card-header-badge badge-purple">CONTROLES</div>
+          <ul class="controls-list">
+            <li><kbd>←</kbd><kbd>→</kbd> Mover</li>
+            <li><kbd>↑</kbd>/<kbd>X</kbd> Girar</li>
+            <li><kbd>Z</kbd> Girar ↺</li>
+            <li><kbd>↓</kbd> Soft Drop</li>
+            <li><kbd>ESPAÇO</kbd> Hard Drop</li>
+            <li><kbd>C</kbd> Hold [Troca]</li>
+            <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Escolha</li>
+            <li><kbd>P</kbd> Pausa</li>
+            <li class="control-mute"><kbd>M</kbd> Mudo</li>
+          </ul>
+        </section>
+      </aside>
+
+      <!-- Coluna Central: O Tabuleiro de Tetris 10x20 -->
+      <section class="board-column">
+        <div class="board-frame card-panel" id="boardFrame">
+          <!-- Canvas do Tabuleiro Principal -->
+          <canvas id="tetrisCanvas" width="320" height="640"></canvas>
+
+          <!-- Overlay de Fumaça (Item Extintor) -->
+          <div id="smokeOverlay" class="smoke-overlay hidden">
+            <span>☁️ FUMAÇA DO EXTINTOR ☁️</span>
+          </div>
+
+          <!-- Barra Separada de Itens Ativos (com botões e teclas) -->
+          <div class="active-items-bar" id="activeItemsBar">
+            <div class="active-bar-header">
+              <span>⚡ ITENS ATIVOS</span>
+              <span class="active-hotkey-tip">TECLAS: [Q] [W] [E] [R] [T] [Y] [U] [G] OU CLIQUE</span>
+            </div>
+            <div class="active-slots-tray" id="activeSlotsTray">
+              <div class="active-empty-text">Nenhum item ativo equipado</div>
+            </div>
+          </div>
+
+          <!-- Overlay de Texto Flutuante / Banners de Combo -->
+          <div id="floatBannerContainer" class="floating-container"></div>
+
+          <!-- Overlay de Escolha de Itens Roguelike (a cada 15 linhas) -->
+          <div id="itemChoiceOverlay" class="game-modal-overlay item-modal-overlay hidden">
+            <div class="item-choice-box card-panel">
+              <div class="item-choice-header">
+                <div class="item-choice-title">ESCOLHA SEU ITEM</div>
+                <div class="item-choice-subtitle">15 LINHAS COMPLETADAS! O EFEITO ACUMULA (STACKA)</div>
+              </div>
+
+              <!-- 3 Cartas Geradas Dinamicamente -->
+              <div class="item-cards-grid" id="itemCardsGrid"></div>
+
+              <!-- Botão do D6 (Reroll) -->
+              <button id="btnD6Reroll" class="card-btn d6-reroll-btn hidden">
+                🎲 GIRAR D6 (Trocas restantes: <span id="d6RerollCount">0</span>)
+              </button>
+
+              <div class="item-choice-footer">
+                <span>Clique em uma carta ou pressione <kbd>1</kbd>, <kbd>2</kbd> ou <kbd>3</kbd></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal do Líquido Misterioso (Editor 5x5 de Peça) -->
+          <div id="liquidModal" class="game-modal-overlay hidden">
+            <div class="modal-card card-panel liquid-editor-box">
+              <div class="modal-title">LÍQUIDO MISTERIOSO</div>
+              <p class="modal-desc">Clique nas células para esculpir a peça atual (máx 5x5):</p>
+              <div id="liquidGrid5x5" class="liquid-grid"></div>
+              <div class="liquid-btn-row">
+                <button id="btnLiquidApply" class="card-btn card-btn-primary">APLICAR PEÇA</button>
+                <button id="btnLiquidCancel" class="card-btn">CANCELAR</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay de Pausa -->
+          <div id="pauseOverlay" class="game-modal-overlay hidden">
+            <div class="modal-card card-panel">
+              <div class="modal-title">JOGO PAUSADO</div>
+              <p class="modal-desc">Respire fundo, planeje a mão.</p>
+              <button id="btnResume" class="card-btn card-btn-primary">CONTINUAR [P]</button>
+            </div>
+          </div>
+
+          <!-- Overlay de Game Over -->
+          <div id="gameOverOverlay" class="game-modal-overlay hidden">
+            <div class="modal-card card-panel gameover-card">
+              <div class="gameover-title">SEM JOGADAS</div>
+              <div class="gameover-subtitle">O BARALHO ENCHEU!</div>
+
+              <div class="gameover-stats">
+                <div class="gov-row">
+                  <span>PONTOS:</span>
+                  <strong id="finalScoreVal">0</strong>
+                </div>
+                <div class="gov-row">
+                  <span>LINHAS:</span>
+                  <strong id="finalLinesVal">0</strong>
+                </div>
+                <div class="gov-row">
+                  <span>NÍVEL:</span>
+                  <strong id="finalLevelVal">1</strong>
+                </div>
+                <div class="gov-row">
+                  <span>MAX COMBO:</span>
+                  <strong id="finalComboVal">0</strong>
+                </div>
+                <div id="newRecordBadge" class="new-record-banner hidden">★ NOVO RECORDE! ★</div>
+              </div>
+
+              <button id="btnPlayAgain" class="card-btn card-btn-primary card-btn-large">
+                JOGAR NOVAMENTE [R]
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Coluna Direita: Balatro Chips & Mult, Próximas Peças (Next 3) -->
+      <aside class="side-column side-right">
+
+        <!-- Painel Estilo Fichas x Mult do Balatro -->
+        <section class="card-panel card-balatro-score" id="scorePanel">
+          <div class="card-header-badge badge-gold">PONTUAÇÃO</div>
+
+          <!-- Mostrador Grande de Pontos -->
+          <div class="score-display-box">
+            <span class="score-title">TOTAL</span>
+            <span class="score-number" id="scoreVal">0</span>
+          </div>
+
+          <!-- Destaque Balatro: FICHAS (Chips) x MULT -->
+          <div class="balatro-calc-row">
+            <!-- Box de Fichas (Azul) -->
+            <div class="calc-box chips-box" id="chipsBox">
+              <span class="calc-tag">BASE</span>
+              <span class="calc-val" id="chipsVal">100</span>
+            </div>
+
+            <div class="calc-operator">×</div>
+
+            <!-- Box de Mult (Vermelho / Fogo) -->
+            <div class="calc-box mult-box" id="multBox">
+              <span class="calc-tag">MULT</span>
+              <span class="calc-val" id="multVal">x1.0</span>
+            </div>
+          </div>
+
+          <!-- Bônus Atual / Info de Combo -->
+          <div class="combo-tracker-row">
+            <div class="combo-bubble" id="comboBubble">
+              <span class="combo-tag">COMBO</span>
+              <span class="combo-count" id="comboCount">0</span>
+            </div>
+            <div class="b2b-badge hidden" id="b2bBadge">BACK-TO-BACK</div>
+          </div>
+        </section>
+
+        <!-- Card: NEXT QUEUE (Próximas 3 Peças) -->
+        <section class="card-panel card-next">
+          <div class="card-header-badge badge-cyan">PRÓXIMAS</div>
+          <div class="next-canvas-stack">
+            <div class="next-slot">
+              <span class="slot-num">1</span>
+              <canvas id="nextCanvas1" width="100" height="75"></canvas>
+            </div>
+            <div class="next-slot">
+              <span class="slot-num">2</span>
+              <canvas id="nextCanvas2" width="100" height="75"></canvas>
+            </div>
+            <div class="next-slot">
+              <span class="slot-num">3</span>
+              <canvas id="nextCanvas3" width="100" height="75"></canvas>
+            </div>
+          </div>
+        </section>
+
+      </aside>
+
+    </div>
+
+    <!-- Rodapé do Jogo (Footer) no fluxo normal da página (position: relative) -->
+    <footer class="game-footer" id="gameFooter">
+      <div class="footer-card card-panel">
+        <div class="footer-content">
+          <p class="footer-title">TETRO / BALATRO ED.</p>
+          <p class="footer-desc">Tetris Roguelike Arcade • Desenvolvido em HTML5, CSS3 e JavaScript puro</p>
+          <div class="footer-tags">
+            <span class="footer-badge">VERSÃO 1.0</span>
+            <span class="footer-badge badge-blue">7-BAG RANDOMIZER</span>
+            <span class="footer-badge badge-gold">ROGUELIKE ITEMS</span>
+            <span class="footer-badge badge-cyan">CHIPS & MULT SYSTEM</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+
+</html>
